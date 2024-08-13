@@ -37,11 +37,22 @@ extension HomeViewController: UIPickerViewDataSource, UIPickerViewDelegate {
     
     func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
         let selectedCurrency = currencies[row]
-        currencyPickerTextField.text = selectedCurrency.code
-        selectedCurrencyLabel.text = selectedCurrency.code
-        if let data = Data(base64Encoded: selectedCurrency.flag), let image = UIImage(data: data) {
-            selectedCurrencyFlagImageView.image = image
+        
+        if isSelectingConvertCurrency {
+            selectedConvertLabel.text = selectedCurrency.code
+            if let data = Data(base64Encoded: selectedCurrency.flag), let image = UIImage(data: data) {
+                selectedConvertFlagImageView.image = image
+            }
+        } else {
+            selectedCurrencyLabel.text = selectedCurrency.code
+            if let data = Data(base64Encoded: selectedCurrency.flag), let image = UIImage(data: data) {
+                selectedCurrencyFlagImageView.image = image
+            }
         }
+        
+        textFieldValue.text = ""
+        textFieldConverted.text = ""
+        currencyPickerTextField.text = selectedCurrency.code
     }
 }
 
@@ -55,6 +66,7 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
     
     var currencies: [Currency] = []
     private let tableView = UITableView()
+    var isSelectingConvertCurrency = false
     
     //FUNCTIONS
     func convertCurrency(from: String, to: String, amount: Double, completion: @escaping ([String: Any]?, Error?) -> Void) {
@@ -335,6 +347,13 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
         return picker
     }()
     
+    private let spinner: UIActivityIndicatorView = {
+        let spinner = UIActivityIndicatorView(style: .large)
+        spinner.hidesWhenStopped = true
+        spinner.translatesAutoresizingMaskIntoConstraints = false
+        return spinner
+    }()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         addSubViews()
@@ -346,8 +365,12 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
     }
     
     private func buscaMoedas() {
+        spinner.startAnimating()
+        
         fetchCurrencies { [weak self] currencies, error in
             DispatchQueue.main.async {
+                self?.spinner.stopAnimating()
+                
                 if let error = error {
                     print("Failed to fetch currencies: \(error)")
                     return
@@ -357,11 +380,35 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
                     self?.currencies = currencies
                     self?.tableView.reloadData()
                     
-                    // Definir a moeda padrão como a primeira da lista
-                    if let firstCurrency = currencies.first {
-                        self?.selectedCurrencyLabel.text = firstCurrency.code
-                        if let data = Data(base64Encoded: firstCurrency.flag), let image = UIImage(data: data) {
+                    // Encontrar as moedas BRL e USD
+                    var moedaOrigem: Currency?
+                    var moedaDestino: Currency?
+                    
+                    for moeda in currencies {
+                        if moeda.code == "BRL" {
+                            moedaOrigem = moeda
+                        } else if moeda.code == "USD" {
+                            moedaDestino = moeda
+                        }
+                        
+                        // Se ambas as moedas foram encontradas, podemos parar a busca
+                        if moedaOrigem != nil && moedaDestino != nil {
+                            break
+                        }
+                    }
+                    
+                    // Setar as labels e imagens
+                    if let moedaOrigem = moedaOrigem {
+                        self?.selectedCurrencyLabel.text = moedaOrigem.code
+                        if let data = Data(base64Encoded: moedaOrigem.flag), let image = UIImage(data: data) {
                             self?.selectedCurrencyFlagImageView.image = image
+                        }
+                    }
+                    
+                    if let moedaDestino = moedaDestino {
+                        self?.selectedConvertLabel.text = moedaDestino.code
+                        if let data = Data(base64Encoded: moedaDestino.flag), let image = UIImage(data: data) {
+                            self?.selectedConvertFlagImageView.image = image
                         }
                     }
                 }
@@ -382,6 +429,7 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
         view.addSubview(selectedConvertLabel)
         view.addSubview(buttonConverted)
         view.addSubview(selectedConvertFlagImageView)
+        view.addSubview(spinner)
         topView.addSubview(label)
     }
     
@@ -461,6 +509,9 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
             buttonConverted.heightAnchor.constraint(equalToConstant: 20),
             buttonConverted.leadingAnchor.constraint(equalTo: selectedConvertLabel.trailingAnchor),
             buttonConverted.centerYAnchor.constraint(equalTo: bottomView.safeAreaLayoutGuide.centerYAnchor),
+            
+            spinner.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            spinner.centerYAnchor.constraint(equalTo: view.centerYAnchor),
         ])
     }
     
@@ -528,13 +579,14 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
         // Converter texto para Double
         if let amount = Double(text.replacingOccurrences(of: ",", with: ".")) {
             // Chamar a função de conversão com o valor convertido
-            convertCurrency(from: "USD", to: "BRL", amount: amount) { result, error in
+            spinner.startAnimating()
+            convertCurrency(from: selectedCurrencyLabel.text ?? "BRL", to: selectedConvertLabel.text ?? "USD", amount: amount) { result, error in
                 DispatchQueue.main.async {
+                    self.spinner.stopAnimating()
                     if let error = error {
                         print("Erro ao converter moeda: \(error.localizedDescription)")
                         self.showAlert(message: "Erro ao converter moeda.")
                     } else if let result = result {
-                        print("Resultado da conversão: \(result)")
                         if let convertedValue = result["converted"] as? Double {
                             self.textFieldConverted.text = "\(self.formatNumber(convertedValue))"
                         } else {
@@ -549,7 +601,13 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
         }
     }
     
-    @objc private func currencyPickerTextFieldTapped() {
+    @objc private func currencyPickerTextFieldTapped(sender: UITapGestureRecognizer) {
+        if sender.view === selectedConvertLabel || sender.view === selectedConvertFlagImageView || sender.view === buttonConverted {
+            isSelectingConvertCurrency = true
+        } else {
+            isSelectingConvertCurrency = false
+        }
+        
         currencyPickerTextField.becomeFirstResponder()
     }
     
