@@ -8,153 +8,15 @@
 import UIKit
 import Foundation
 
-extension UIImageView {
-    func setBase64Image(_ base64String: String) {
-        guard let imageData = Data(base64Encoded: base64String) else {
-            print("Erro: Falha ao converter string base64 para Data")
-            return
-        }
-        guard let image = UIImage(data: imageData) else {
-            print("Erro: Falha ao converter Data para UIImage")
-            return
-        }
-        self.image = image
-    }
-}
-
-extension HomeViewController: UIPickerViewDataSource, UIPickerViewDelegate {
-    func numberOfComponents(in pickerView: UIPickerView) -> Int {
-        return 1
-    }
-    
-    func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
-        return currencies.count
-    }
-    
-    func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
-        return currencies[row].code
-    }
-    
-    func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
-        let selectedCurrency = currencies[row]
-        
-        if isSelectingConvertCurrency {
-            selectedConvertLabel.text = selectedCurrency.code
-            if let data = Data(base64Encoded: selectedCurrency.flag), let image = UIImage(data: data) {
-                selectedConvertFlagImageView.image = image
-            }
-        } else {
-            selectedCurrencyLabel.text = selectedCurrency.code
-            if let data = Data(base64Encoded: selectedCurrency.flag), let image = UIImage(data: data) {
-                selectedCurrencyFlagImageView.image = image
-            }
-        }
-        
-        textFieldValue.text = ""
-        textFieldConverted.text = ""
-        currencyPickerTextField.text = selectedCurrency.code
-    }
-}
-
-class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
-    
-    struct Currency: Codable {
-        let code: String
-        let name: String
-        let flag: String
-    }
+class HomeViewController: UIViewController {
     
     var currencies: [Currency] = []
     private let tableView = UITableView()
     var isSelectingConvertCurrency = false
     
-    //FUNCTIONS
-    func convertCurrency(from: String, to: String, amount: Double, completion: @escaping ([String: Any]?, Error?) -> Void) {
-        guard let url = URL(string: "http://localhost:3210/convert") else {
-            completion(nil, NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "URL inválida"]))
-            return
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        let json: [String: Any] = ["fromCurrency": from, "toCurrency": to, "amount": amount]
-        let jsonData = try? JSONSerialization.data(withJSONObject: json)
-        request.httpBody = jsonData
-        
-        let task = URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error = error {
-                completion(nil, error)
-                return
-            }
-            
-            guard let data = data else {
-                completion(nil, NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Dados não encontrados"]))
-                return
-            }
-            
-            do {
-                if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
-                    completion(json, nil)
-                } else {
-                    completion(nil, NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Formato de resposta inválido"]))
-                }
-            } catch let parseError {
-                completion(nil, parseError)
-            }
-        }
-        
-        task.resume()
-    }
-    
-    func fetchCurrencies(completion: @escaping ([Currency]?, Error?) -> Void) {
-        let urlString = "http://localhost:3210/currencies"
-        guard let url = URL(string: urlString) else {
-            completion(nil, NSError(domain: "Invalid URL", code: 0, userInfo: nil))
-            return
-        }
-        
-        let task = URLSession.shared.dataTask(with: url) { data, response, error in
-            if let error = error {
-                completion(nil, error)
-                return
-            }
-            
-            guard let data = data else {
-                completion(nil, NSError(domain: "No Data", code: 0, userInfo: nil))
-                return
-            }
-            
-            do {
-                let currencies = try JSONDecoder().decode([Currency].self, from: data)
-                completion(currencies, nil)
-            } catch {
-                completion(nil, error)
-            }
-        }
-        
-        task.resume()
-    }
-    
-    func formatNumber(_ number: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.locale = Locale(identifier: "pt_BR") // Configura para o formato brasileiro
-        formatter.currencySymbol = "" // Remove o símbolo da moeda, se necessário
-        formatter.groupingSeparator = "." // Separador de milhar
-        formatter.decimalSeparator = "," // Separador decimal
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        
-        return formatter.string(from: NSNumber(value: number)) ?? ""
-    }
-    
-    //VIEW
-    
     private lazy var topView: UIView = {
         let topView = UIView()
-        topView.backgroundColor = UIColor(named: "PrimaryColor")
+        topView.backgroundColor = UIColor(named: AssetsConstants.primaryColor)
         topView.translatesAutoresizingMaskIntoConstraints = false
         
         return topView
@@ -162,7 +24,7 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
     
     private lazy var bottomView: UIView = {
         let bottomView = UIView()
-        bottomView.backgroundColor = UIColor(named: "SecondaryColor")
+        bottomView.backgroundColor = UIColor(named: AssetsConstants.secondaryColor)
         bottomView.translatesAutoresizingMaskIntoConstraints = false
         
         return bottomView
@@ -172,7 +34,7 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.text = "Cotação de Moedas"
-        label.textColor = UIColor(named: "TextColor")
+        label.textColor = UIColor(named: AssetsConstants.secondaryColor)
         label.font = .systemFont(ofSize: 24, weight: .bold)
         
         return label
@@ -181,7 +43,7 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
     private lazy var buttonConvert: UIButton = {
         let buttonConvert = UIButton(type: .system)
         buttonConvert.translatesAutoresizingMaskIntoConstraints = false
-        buttonConvert.backgroundColor = UIColor(named: "PrimaryColor")
+        buttonConvert.backgroundColor = UIColor(named: AssetsConstants.primaryColor)
         buttonConvert.layer.cornerRadius = 35
         buttonConvert.layer.masksToBounds = true
         if let originalImage = UIImage(systemName: "arrow.up.arrow.down") {
@@ -189,7 +51,7 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
             let largeImage = originalImage.applyingSymbolConfiguration(largeConfig)
             buttonConvert.setImage(largeImage, for: .normal)
         }
-        buttonConvert.tintColor = UIColor(named: "SecondaryColor")
+        buttonConvert.tintColor = UIColor(named: AssetsConstants.secondaryColor)
         buttonConvert.addTarget(self, action: #selector(convertButtonPressed), for: .touchUpInside)
         
         return buttonConvert
@@ -203,7 +65,7 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
             let largeImage = originalImage.applyingSymbolConfiguration(largeConfig)
             buttonConvert.setImage(largeImage, for: .normal)
         }
-        buttonConvert.tintColor = UIColor(named: "SecondaryColor")
+        buttonConvert.tintColor = UIColor(named: AssetsConstants.secondaryColor)
         
         return button
     }()
@@ -211,12 +73,12 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
     private lazy var textFieldValue: PaddedTextField = {
         let textField = PaddedTextField()
         textField.translatesAutoresizingMaskIntoConstraints = false
-        textField.backgroundColor = UIColor(named: "PrimaryColor")
+        textField.backgroundColor = UIColor(named: AssetsConstants.primaryColor)
         textField.frame = CGRect(x: 0, y: 0, width: 250, height: 50)
         textField.layer.borderWidth = 1.0
-        textField.layer.borderColor = UIColor(named: "SecondaryColor")?.cgColor
+        textField.layer.borderColor = UIColor(named: AssetsConstants.secondaryColor)?.cgColor
         textField.layer.cornerRadius = 5.0
-        textField.textColor = UIColor(named: "SecondaryColor")
+        textField.textColor = UIColor(named: AssetsConstants.secondaryColor)
         textField.textAlignment = .right
         textField.keyboardType = .decimalPad
         
@@ -226,12 +88,12 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
     private lazy var textFieldConverted: PaddedTextField = {
         let textField = PaddedTextField()
         textField.translatesAutoresizingMaskIntoConstraints = false
-        textField.backgroundColor = UIColor(named: "SecondaryColor")
+        textField.backgroundColor = UIColor(named: AssetsConstants.secondaryColor)
         textField.frame = CGRect(x: 0, y: 0, width: 250, height: 50)
         textField.layer.borderWidth = 1.0
-        textField.layer.borderColor = UIColor(named: "PrimaryColor")?.cgColor
+        textField.layer.borderColor = UIColor(named: AssetsConstants.primaryColor)?.cgColor
         textField.layer.cornerRadius = 5.0
-        textField.textColor = UIColor(named: "PrimaryColor")
+        textField.textColor = UIColor(named: AssetsConstants.primaryColor)
         textField.textAlignment = .right
         textField.isUserInteractionEnabled = false
         
@@ -241,7 +103,7 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
     private lazy var selectedCurrencyLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.textColor = UIColor(named: "SecondaryColor")
+        label.textColor = UIColor(named: AssetsConstants.secondaryColor)
         
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(currencyPickerTextFieldTapped))
         label.isUserInteractionEnabled = true
@@ -265,13 +127,13 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
     private lazy var buttonCurrency: UIButton = {
         let button = UIButton(type: .system)
         button.translatesAutoresizingMaskIntoConstraints = false
-        button.backgroundColor = UIColor(named: "PrimaryColor")
+        button.backgroundColor = UIColor(named: AssetsConstants.primaryColor)
         if let originalImage = UIImage(systemName: "arrowtriangle.down.fill") {
             let smallConfig = UIImage.SymbolConfiguration(pointSize: 8, weight: .bold)
             let smallImage = originalImage.applyingSymbolConfiguration(smallConfig)
             button.setImage(smallImage, for: .normal)
         }
-        button.tintColor = UIColor(named: "SecondaryColor")
+        button.tintColor = UIColor(named: AssetsConstants.secondaryColor)
         button.addTarget(self, action: #selector(currencyPickerTextFieldTapped), for: .touchUpInside)
         
         return button
@@ -280,7 +142,7 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
     private lazy var selectedConvertLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.textColor = UIColor(named: "PrimaryColor")
+        label.textColor = UIColor(named: AssetsConstants.primaryColor)
         
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(currencyPickerTextFieldTapped))
         label.isUserInteractionEnabled = true
@@ -304,13 +166,13 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
     private lazy var buttonConverted: UIButton = {
         let button = UIButton(type: .system)
         button.translatesAutoresizingMaskIntoConstraints = false
-        button.backgroundColor = UIColor(named: "SecondaryColor")
+        button.backgroundColor = UIColor(named: AssetsConstants.secondaryColor)
         if let originalImage = UIImage(systemName: "arrowtriangle.down.fill") {
             let smallConfig = UIImage.SymbolConfiguration(pointSize: 8, weight: .bold)
             let smallImage = originalImage.applyingSymbolConfiguration(smallConfig)
             button.setImage(smallImage, for: .normal)
         }
-        button.tintColor = UIColor(named: "PrimaryColor")
+        button.tintColor = UIColor(named: AssetsConstants.primaryColor)
         button.addTarget(self, action: #selector(currencyPickerTextFieldTapped), for: .touchUpInside)
         
         return button
@@ -441,7 +303,7 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
     }
     
     private func setupConstraints() {
-        view.backgroundColor = UIColor(named: "SecondaryColor")
+        view.backgroundColor = UIColor(named: AssetsConstants.secondaryColor)
         tableView.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
@@ -511,7 +373,7 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
             buttonConverted.centerYAnchor.constraint(equalTo: bottomView.safeAreaLayoutGuide.centerYAnchor),
             
             spinner.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            spinner.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            spinner.centerYAnchor.constraint(equalTo: textFieldValue.bottomAnchor, constant: 50),
         ])
     }
     
@@ -531,10 +393,8 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
         let centerX = topView.bounds.width / 2
         let rect = CGRect(x: centerX - curveWidth / 2, y: topView.bounds.height - curveHeight, width: curveWidth, height: curveHeight)
         
-        // Desenhar o arco na parte inferior da topView, projetando para cima
         path.addArc(withCenter: CGPoint(x: rect.midX, y: rect.maxY), radius: buttonRadius + margin, startAngle: .pi, endAngle: 0, clockwise: true)
         
-        // Desenhar linhas retas para fechar o caminho na área inferior da topView
         path.addLine(to: CGPoint(x: topView.bounds.width, y: topView.bounds.height))
         path.addLine(to: CGPoint(x: topView.bounds.width, y: 0))
         path.addLine(to: CGPoint(x: 0, y: 0))
@@ -549,6 +409,87 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
         topView.layer.mask = maskLayer
     }
     
+    @objc func convertButtonPressed() {
+        // Obter o texto do textFieldValue
+        guard let text = textFieldValue.text, !text.isEmpty else {
+            AlertService.showAlert(on: self, message: "O campo de valor não pode estar vazio.")
+            return
+        }
+        
+        // Converter texto para Double
+        if let amount = Double(text.replacingOccurrences(of: ",", with: ".")) {
+            // Chamar a função de conversão com o valor convertido
+            spinner.startAnimating()
+            convertCurrency(from: selectedCurrencyLabel.text ?? "BRL", to: selectedConvertLabel.text ?? "USD", amount: amount) { result, error in
+                DispatchQueue.main.async {
+                    self.spinner.stopAnimating()
+                    if let error = error {
+                        print("Erro ao converter moeda: \(error.localizedDescription)")
+                        AlertService.showAlert(on: self, message: "Erro ao converter moeda.")
+                    } else if let result = result {
+                        if let convertedValue = result["converted"] as? Double {
+                            self.textFieldConverted.text = "\(formatNumber(convertedValue))"
+                        } else {
+                            self.textFieldConverted.text = "Conversão Falhou!"
+                        }
+                    }
+                }
+            }
+        } else {
+            AlertService.showAlert(on: self, message: "Digite um valor numérico válido.")
+        }
+    }
+    
+    @objc private func currencyPickerTextFieldTapped(sender: UITapGestureRecognizer) {
+        if sender.view === selectedConvertLabel || sender.view === selectedConvertFlagImageView || sender.view === buttonConverted {
+            isSelectingConvertCurrency = true
+        } else {
+            isSelectingConvertCurrency = false
+        }
+        
+        currencyPickerTextField.becomeFirstResponder()
+    }
+    
+    @objc private func dismissPicker() {
+        view.endEditing(true)
+    }
+}
+
+extension HomeViewController: UIPickerViewDataSource, UIPickerViewDelegate {
+    func numberOfComponents(in pickerView: UIPickerView) -> Int {
+        return 1
+    }
+    
+    func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
+        return currencies.count
+    }
+    
+    func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
+        return currencies[row].code
+    }
+    
+    func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
+        let selectedCurrency = currencies[row]
+        
+        if isSelectingConvertCurrency {
+            selectedConvertLabel.text = selectedCurrency.code
+            if let data = Data(base64Encoded: selectedCurrency.flag), let image = UIImage(data: data) {
+                selectedConvertFlagImageView.image = image
+            }
+        } else {
+            selectedCurrencyLabel.text = selectedCurrency.code
+            if let data = Data(base64Encoded: selectedCurrency.flag), let image = UIImage(data: data) {
+                selectedCurrencyFlagImageView.image = image
+            }
+        }
+        
+        textFieldValue.text = ""
+        textFieldConverted.text = ""
+        currencyPickerTextField.text = selectedCurrency.code
+    }
+}
+
+extension HomeViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return currencies.count
     }
@@ -567,58 +508,6 @@ class HomeViewController: UIViewController, UITableViewDataSource, UITableViewDe
         if let data = Data(base64Encoded: selectedCurrency.flag), let image = UIImage(data: data) {
             selectedCurrencyFlagImageView.image = image
         }
-    }
-    
-    @objc func convertButtonPressed() {
-        // Obter o texto do textFieldValue
-        guard let text = textFieldValue.text, !text.isEmpty else {
-            showAlert(message: "O campo de valor não pode estar vazio.")
-            return
-        }
-        
-        // Converter texto para Double
-        if let amount = Double(text.replacingOccurrences(of: ",", with: ".")) {
-            // Chamar a função de conversão com o valor convertido
-            spinner.startAnimating()
-            convertCurrency(from: selectedCurrencyLabel.text ?? "BRL", to: selectedConvertLabel.text ?? "USD", amount: amount) { result, error in
-                DispatchQueue.main.async {
-                    self.spinner.stopAnimating()
-                    if let error = error {
-                        print("Erro ao converter moeda: \(error.localizedDescription)")
-                        self.showAlert(message: "Erro ao converter moeda.")
-                    } else if let result = result {
-                        if let convertedValue = result["converted"] as? Double {
-                            self.textFieldConverted.text = "\(self.formatNumber(convertedValue))"
-                        } else {
-                            self.textFieldConverted.text = "Conversão Falhou!"
-                        }
-                    }
-                }
-            }
-        } else {
-            // Mostrar alerta se a conversão falhar
-            showAlert(message: "Digite um valor numérico válido.")
-        }
-    }
-    
-    @objc private func currencyPickerTextFieldTapped(sender: UITapGestureRecognizer) {
-        if sender.view === selectedConvertLabel || sender.view === selectedConvertFlagImageView || sender.view === buttonConverted {
-            isSelectingConvertCurrency = true
-        } else {
-            isSelectingConvertCurrency = false
-        }
-        
-        currencyPickerTextField.becomeFirstResponder()
-    }
-    
-    @objc private func dismissPicker() {
-        view.endEditing(true)
-    }
-    
-    func showAlert(message: String) {
-        let alert = UIAlertController(title: "Atenção", message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
-        present(alert, animated: true, completion: nil)
     }
 }
 
