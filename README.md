@@ -22,14 +22,15 @@ Projeto simples de criação de interface utilizando Swift com UIKit e View Code
 
 ## WebService
 
-Este projeto depende de um webservice que está disponível na pasta Server para a busca das moedas disponíveis e cálculo de conversão.
+Este projeto depende de um webservice que está disponível na pasta ws-projetos-node disponível em [https://github.com/fernando-schulz/ws-projetos-nodejs] para a busca das moedas disponíveis e cálculo de conversão.
 
-1. Após instalação e configuração do servidor Node.js, pelo terminal navegue até a pasta Server dentro do projeto Currency Converter
-2. Rode o webService com o comando node index.js
+1. Após instalação e configuração do servidor Node.js, clone a pasta do webService, navegue até a pasta pelo terminal e rode o projeto;
+2. Rode o webService com o comando "node index.js" sem as aspas
+3. O WebService rodará na porta 3210, e o aplicativo já está apontando para o link localhost:3210, não é necessário alterar nada em nenhum dos dois projetos
 
 # Projeto
 
-Após iniciar o webservice, basta apenas rodar o aplicativo em um simulador ou dispositivo real que o consumo será feito automaticamente na url localhost:3210
+Após iniciar o webservice, basta apenas rodar o aplicativo em um simulador ou dispositivo real que o consumo será feito automaticamente.
 
 ## Imagens
 
